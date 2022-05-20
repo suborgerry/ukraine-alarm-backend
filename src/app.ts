@@ -7,7 +7,12 @@ const bot: Telegraf<Context<Update>> = new Telegraf(token);
 const chatId: string = process.env.CHAT_ID as string;
 
 bot.start((ctx) => {
-  ctx.reply('Вітаю, ' + ctx.from.first_name + '!');
+  ctx.reply('Вітаю, ' + ctx.from.first_name + '!',
+  Markup.keyboard([
+    ['🔍 Шукати', '☸ Налаштування'], // Row1 with 2 buttons
+    [ '📞 Контакти', '⭐️ Залишити відгук'], // Row2 with 2 buttons
+    ['📢 Допомога', '👥 Росказати про нас'] // Row3 with 3 buttons
+  ]));
 });
 
 bot.help((ctx) => {
@@ -15,14 +20,9 @@ bot.help((ctx) => {
   ctx.reply('Введіть /quit для зупинки бота');
 });
 
-bot.command('start', (ctx) => {
+bot.command('search', (ctx) => {
   ctx.reply(
-    'Визначитssи геолокацію',
-    Markup.keyboard([
-      ['🔍 Шукати', '☸ Налаштування'], // Row1 with 2 buttons
-      [ '📞 Контакти', '⭐️ Залишити відгук'], // Row2 with 2 buttons
-      ['📢 Допомога', '👥 Росказати про нас'] // Row3 with 3 buttons
-    ])
+    'Визначитssи геолокацію'
   );
 });
 
