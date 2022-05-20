@@ -10,7 +10,7 @@ const bot: Telegraf<Context<Update>> = new Telegraf(token);
 const chatId: string = process.env.CHAT_ID as string;
 
 bot.start((ctx) => {
-  ctx.reply('Hello ' + ctx.from.first_name + '!');
+  ctx.reply('Hi ' + ctx.from.first_name + '!');
 });
 
 bot.help((ctx) => {
