@@ -1,5 +1,6 @@
 import { Context, Markup, Telegraf, Telegram } from 'telegraf';
 import { Update } from 'typegram';
+import axios from 'axios';
 
 const token: string = process.env.BOT_TOKEN as string;
 const telegram: Telegram = new Telegram(token);
@@ -10,13 +11,13 @@ bot.start((ctx) => {
   ctx.reply('Вітаю, ' + ctx.from.first_name + '!',
   Markup.keyboard([
     ['🔍 Шукати', '☸ Налаштування'], // Row1 with 2 buttons
-    [ '⚠️ Інформація для розробника', '⭐️ Залишити відгук'], // Row2 with 2 buttons
-    ['📢 Допомога', '👥 Росказати про нас'] // Row3 with 3 buttons
+    [ '⚠️ Інформація для розробника', '📢 Допомога'], // Row2 with 2 buttons
+    // ['⭐️ Залишити відгук', '👥 Росказати про нас'] // Row3 with 3 buttons
   ]));
   console.log("Started user: " + ctx.from.id + "\n");
 });
 
-bot.help((ctx) => {
+bot.hears('📢 Допомога', (ctx) => {
   ctx.reply('Введіть /search для визначення вашого міста');
   ctx.reply('Введіть /quit для зупинки бота');
   console.log("User: " + ctx.from.id + ".Comand: '/help'\n");
@@ -29,13 +30,26 @@ bot.command('search', (ctx) => {
 });
 
 bot.hears('🔍 Шукати', ctx => {
-  ctx.reply('Запит успішно оброблено')
+  ctx.reply('Введіть вашу область');
+  ctx.deleteMessage()
+});
+
+bot.hears('Чернівецька', ctx => {
+  axios.get('http://sirens.in.ua/api/v1/').then(resp => {
+    const alarmState: string = resp.data['Chernivtsi'];
+    if(alarmState === 'full') {
+      ctx.reply('В ващій області триває повітряна тривога');
+    } else {
+      ctx.reply('В ващій області не маэ повітряної тривоги');
+    }
+  });
 });
 
 bot.hears('⚠️ Інформація для розробника', ctx => {
   ctx.reply(
     "І'мя: " + ctx.from.first_name + "\n" + "Фамілія: " + ctx.from.last_name + "\n" + "Ваш id: " + ctx.from.id + "\n"
-  )
+  );
+  ctx.deleteMessage()
 });
 
 bot.command('quit', (ctx) => {
