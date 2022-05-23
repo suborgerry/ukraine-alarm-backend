@@ -65,8 +65,8 @@ const mainKeyboard = async (ctx: Context) => {
 };
 
 const deleteAll = async (msg: Context) => {
-  const messageId: number = msg.callbackQuery.message.message_id;
-  const chatId: number = msg.callbackQuery.message.chat.id;
+  const messageId: number = msg?.callbackQuery?.message?.message_id != undefined ? msg.callbackQuery.message.message_id : 0;
+  const chatId: number = msg?.callbackQuery?.message?.chat.id != undefined ? msg.callbackQuery.message.chat.id : 0;
 
   for (let i = messageId; i >= 0; i--) {
     try {
@@ -144,7 +144,7 @@ bot.hears('⚠️ Для розробника', ctx => {
 
 bot.on("callback_query", (msg) => {
   const userArea: string = msg.callbackQuery.data.replace(/'/, "''");
-  const userId: number = msg.from.id;
+  const userId: number = msg?.from?.id != undefined ? msg.from.id : 0;
   const userAreaCirillic: string = areasOfUkraine[msg.callbackQuery.data as keyof typeof areasOfUkraine]
 
   const sql = `INSERT INTO alarm_users (id, arrea, arrea_cyrillic) VALUES ('${userId}', '${userArea}', '${userAreaCirillic}')`;
@@ -153,8 +153,8 @@ bot.on("callback_query", (msg) => {
     if (err) console.log(err);
     // client.end();
   });
-  deleteAll(msg);
   mainKeyboard(msg);
+  deleteAll(msg);
 });
 
 bot.command('quit', (ctx) => {
