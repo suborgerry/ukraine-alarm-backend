@@ -2,6 +2,7 @@ import { Context, Markup, Telegraf } from 'telegraf';
 import { Update } from 'typegram';
 // import axios from 'axios';
 import { Client } from 'pg';
+import { KeyObjectType } from 'crypto';
 
 const token: string = process.env.BOT_TOKEN as string;
 const bot: Telegraf<Context<Update>> = new Telegraf(token);
@@ -45,13 +46,25 @@ const client = new Client({
 client.connect();
 
 const mainKeyboard = (ctx: Context) => {
-  return (
-    ctx.reply('Вітаю ' + (ctx.from.first_name ? ctx.from.first_name : "шановний") + '!',
-    Markup.keyboard([
-      ['🔍 Шукати', '📌 Моя локація'],
-      ['⚠️ Для розробника', '📢 Допомога'],
-    ]))
-  )
+  let region;
+
+  client.query(`SELECT * FROM alarm_users WHERE id='${ctx.from.id}'`, (err, res) => {
+    if (err) throw err;
+
+    const cityKey: KeyObjectType = res.rows[0].arrea;
+    const userRegion: string = areasOfUkraine[cityKey as keyof typeof areasOfUkraine];
+    region = userRegion;
+    
+    const firsRow = `Вітаю ${(ctx.from.first_name ? ctx.from.first_name : "шановний")}!`;
+    const secondRow = `Ваш регіон: ${region}`
+    return (
+      ctx.reply(firsRow + "\n" + secondRow,
+      Markup.keyboard([
+        ['🔍 Шукати',], //'📌 Додати локацію'
+        ['⚠️ Для розробника', '📢 Допомога'],
+      ]))
+    )
+  })
 };
 
 bot.start((ctx) => {
@@ -70,7 +83,7 @@ bot.start((ctx) => {
 
     // define keyborad
     if(checkState) {
-      mainKeyboard(ctx);
+        mainKeyboard(ctx);
     } else {
       ctx.reply('Вітаю, ' + ctx.from.first_name + '! Будь ласка, визначте свій регіон',
       Markup.keyboard([
