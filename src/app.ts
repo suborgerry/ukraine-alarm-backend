@@ -142,10 +142,12 @@ bot.hears('⚠️ Для розробника', ctx => {
   ctx.deleteMessage()
 });
 
-bot.on("callback_query", (msg) => {
-  const userArea: string = msg.callbackQuery.data.replace(/'/, "''");
+bot.on("callback_query", (msg: Context) => {
+  const data: any = msg.callbackQuery;
+
+  const userArea: string = data.data.replace(/'/, "''");
   const userId: number = msg?.from?.id != undefined ? msg.from.id : 0;
-  const userAreaCirillic: string = areasOfUkraine[msg.callbackQuery.data as keyof typeof areasOfUkraine]
+  const userAreaCirillic: string = areasOfUkraine[data.data as keyof typeof areasOfUkraine]
 
   const sql = `INSERT INTO alarm_users (id, arrea, arrea_cyrillic) VALUES ('${userId}', '${userArea}', '${userAreaCirillic}')`;
   // client.connect();
