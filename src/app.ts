@@ -9,7 +9,7 @@ const bot: Telegraf<Context<Update>> = new Telegraf(token);
 
 const areasOfUkraine = {
   "Mykolayiv": "Миколаївська",
-  "Chernihiv": "ернігівська",
+  "Chernihiv": "Чернігівська",
   "Rivne": "Рівенська",
   "Chernivtsi": "Чернігівська",
   "Ivano-Frankivs'k": "Івано-Франківська",
@@ -53,9 +53,10 @@ const mainKeyboard = (ctx: Context) => {
 
     const cityKey: KeyObjectType = res.rows[0].arrea;
     const userRegion: string = areasOfUkraine[cityKey as keyof typeof areasOfUkraine];
+    const userName: string = ctx.from?.first_name ? ctx.from.first_name : "шановний";
     region = userRegion;
     
-    const firsRow = `Вітаю ${(ctx.from.first_name ? ctx.from.first_name : "шановний")}!`;
+    const firsRow = `Вітаю ${userName}!`;
     const secondRow = `Ваш регіон: ${region}`
     return (
       ctx.reply(firsRow + "\n" + secondRow,
@@ -98,7 +99,7 @@ bot.start((ctx) => {
 bot.hears('📢 Допомога', (ctx) => {
   ctx.reply('Введіть /search для визначення вашого міста');
   ctx.reply('Введіть /quit для зупинки бота');
-  console.log("User: " + ctx.from.id + ".Comand: '/help'\n");
+  console.log("User: " + ctx.from.id + ".Comand: '/help'");
 });
 
 bot.hears('🔍 Шукати', (ctx) => {
@@ -132,10 +133,11 @@ bot.hears('⚠️ Для розробника', ctx => {
 
 bot.on("callback_query", (msg) => {
 
-  const userArea: string = msg.callbackQuery.data;
+  const userArea: string = msg.callbackQuery.data.replace(/'/, "''");
   const userId: number = msg.from.id;
 
   const sql = `INSERT INTO alarm_users (id, arrea) VALUES ('${userId}', '${userArea}')`;
+  console.log(sql);
   // client.connect();
   client.query(sql, (err) => {
     if (err) console.log(err);
