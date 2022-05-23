@@ -42,24 +42,43 @@ const client = new Client({
     rejectUnauthorized: false
   }
 });
+client.connect();
 
-// client.connect();
-
-// client.query('SELECT * FROM alarm_users', (err, res) => {
-//   if (err) throw err;
-//   for (const row of res.rows) {
-//     console.log(JSON.stringify(row));
-//   }
-//   client.end();
-// });
+const mainKeyboard = (ctx: Context) => {
+  return (
+    ctx.reply('Вітаю ' + (ctx.from.first_name ? ctx.from.first_name : "шановний") + '!',
+    Markup.keyboard([
+      ['🔍 Шукати', '📌 Моя локація'],
+      ['⚠️ Для розробника', '📢 Допомога'],
+    ]))
+  )
+};
 
 bot.start((ctx) => {
-  ctx.reply('Вітаю, ' + ctx.from.first_name + '!',
-    Markup.keyboard([
-      ['🔍 Шукати', '📌 Моя локація'], // Row1 with 2 buttons
-      ['⚠️ Для розробника', '📢 Допомога'], // Row2 with 2 buttons
-      // ['⭐️ Залишити відгук', '👥 Росказати про нас'] // Row3 with 3 buttons
-    ]));
+  // check user id
+  client.query('SELECT * FROM alarm_users', (err, res) => {
+    if (err) throw err;
+
+    let checkState = false;
+
+    for (const row of res.rows) {
+      const idFromDB: number = parseInt(JSON.stringify(row.id), 10);
+      if(idFromDB == ctx.from.id) {
+        checkState = true
+      }      
+    }
+
+    // define keyborad
+    if(checkState) {
+      mainKeyboard(ctx);
+    } else {
+      ctx.reply('Вітаю, ' + ctx.from.first_name + '! Будь ласка, визначте свій регіон',
+      Markup.keyboard([
+        ['🟡 Показати регіони']
+      ]));
+    }
+    // client.end();
+  });
   console.log("Started user: " + ctx.from.id);
 });
 
@@ -75,7 +94,7 @@ bot.hears('🔍 Шукати', (ctx) => {
   )
 });
 
-bot.hears('📌 Моя локація', ctx => {
+bot.hears(/📌 Моя локація|🟡 Показати регіони/, ctx => {
   const buttonsArray = [];
   for (const [key, value] of Object.entries(areasOfUkraine)) {
     buttonsArray.push(
@@ -104,12 +123,12 @@ bot.on("callback_query", (msg) => {
   const userId: number = msg.from.id;
 
   const sql = `INSERT INTO alarm_users (id, arrea) VALUES ('${userId}', '${userArea}')`;
-  console.log(sql);
-  client.connect();
+  // client.connect();
   client.query(sql, (err) => {
     if (err) console.log(err);
-    client.end();
+    // client.end();
   });
+  mainKeyboard(msg);
 });
 
 bot.command('quit', (ctx) => {
