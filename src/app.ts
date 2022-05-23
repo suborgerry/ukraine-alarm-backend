@@ -2,39 +2,38 @@ import { Context, Markup, Telegraf } from 'telegraf';
 import { Update } from 'typegram';
 // import axios from 'axios';
 import { Client } from 'pg';
-import { KeyObjectType } from 'crypto';
 
 const token: string = process.env.BOT_TOKEN as string;
 const bot: Telegraf<Context<Update>> = new Telegraf(token);
 
 const areasOfUkraine = {
-  "Mykolayiv": "Миколаївська",
-  "Chernihiv": "Чернігівська",
-  "Rivne": "Рівенська",
-  "Chernivtsi": "Чернігівська",
-  "Ivano-Frankivs'k": "Івано-Франківська",
-  "Khmel'nyts'kyy": "Хмельницька",
-  "L'viv": "Львівська",
-  "Ternopil'": "Тернопільська",
-  "Transcarpathia": "Закарпатська",
-  "Volyn": "Волинська",
-  "Cherkasy": "Черкаська",
-  "Kirovohrad": "Кіровоградська",
-  "Kyiv": "Київська",
-  "Odessa": "Одеська",
-  "Vinnytsya": "Вінницька",
-  "Zhytomyr": "Житомирська",
-  "Sumy": "Сумська",
-  "Dnipropetrovs'k": "Дніпропетровська",
-  "Donets'k": "Донецька",
-  "Kharkiv": "Харківська",
-  "Poltava": "Полтавська",
-  "Zaporizhzhya": "Запоріжська",
-  "Kyiv City": "Київ",
-  "Kherson": "Херсонська",
-  "Luhans'k": "Луганська",
-  "Sevastopol": "Севастопіль",
-  "Crimea": "Крим",
+  "Mykolayiv": "Миколаївська обл.",
+  "Chernihiv": "Чернігівська обл.",
+  "Rivne": "Рівенська обл.",
+  "Chernivtsi": "Чернігівська обл.",
+  "Ivano-Frankivs'k": "Івано-Франківська обл.",
+  "Khmel'nyts'kyy": "Хмельницька обл.",
+  "L'viv": "Львівська обл.",
+  "Ternopil'": "Тернопільська обл.",
+  "Transcarpathia": "Закарпатська обл.",
+  "Volyn": "Волинська обл.",
+  "Cherkasy": "Черкаська обл.",
+  "Kirovohrad": "Кіровоградська обл.",
+  "Kyiv": "Київська обл.",
+  "Odessa": "Одеська обл.",
+  "Vinnytsya": "Вінницька обл.",
+  "Zhytomyr": "Житомирська обл.",
+  "Sumy": "Сумська обл.",
+  "Dnipropetrovs'k": "Дніпропетровська обл.",
+  "Donets'k": "Донецька обл.",
+  "Kharkiv": "Харківська обл.",
+  "Poltava": "Полтавська обл.",
+  "Zaporizhzhya": "Запоріжська обл.",
+  "Kyiv City": "м. Київ",
+  "Kherson": "Херсонська обл.",
+  "Luhans'k": "Луганська обл.",
+  "Sevastopol": "м. Севастопіль",
+  "Crimea": "АР Крим",
 };
 
 const client = new Client({
@@ -45,51 +44,64 @@ const client = new Client({
 });
 client.connect();
 
-const mainKeyboard = (ctx: Context) => {
-  let region;
-
-  client.query(`SELECT * FROM alarm_users WHERE id='${ctx.from.id}'`, (err, res) => {
+// Function check user`s id with reion. If user have reion pring main keyboard if doesn`t offering to choise region.
+const mainKeyboard = async (ctx: Context) => {
+  client.query(`SELECT * FROM alarm_users WHERE id='${ctx.from?.id}'`, (err, res) => {
     if (err) throw err;
 
-    const cityKey: KeyObjectType = res.rows[0].arrea;
-    const userRegion: string = areasOfUkraine[cityKey as keyof typeof areasOfUkraine];
+    const userRegion: string = res.rows[0].arrea_cyrillic;
     const userName: string = ctx.from?.first_name ? ctx.from.first_name : "шановний";
-    region = userRegion;
-    
+
     const firsRow = `Вітаю ${userName}!`;
-    const secondRow = `Ваш регіон: ${region}`
+    const secondRow = `Ваш регіон: ${userRegion}`
     return (
       ctx.reply(firsRow + "\n" + secondRow,
-      Markup.keyboard([
-        ['🔍 Шукати',], //'📌 Додати локацію'
-        ['⚠️ Для розробника', '📢 Допомога'],
-      ]))
+        Markup.keyboard([
+          ['🔍 Шукати',], //'📌 Додати локацію'
+          ['📢 Допомога']
+        ]))
     )
-  })
+  });
+};
+
+const deleteAll = async (msg: Context) => {
+  const messageId: number = msg.callbackQuery.message.message_id;
+  const chatId: number = msg.callbackQuery.message.chat.id;
+
+  for (let i = messageId; i >= 0; i--) {
+    try {
+      await msg.telegram.deleteMessage(chatId, i);
+    } catch (e) {
+      // console.error(e);
+      break;
+    }
+  }
+  return 0;
 };
 
 bot.start((ctx) => {
   // check user id
-  client.query('SELECT * FROM alarm_users', (err, res) => {
+  const sql = "SELECT * FROM alarm_users";
+  client.query(sql, (err, res) => {
     if (err) throw err;
 
     let checkState = false;
 
     for (const row of res.rows) {
       const idFromDB: number = parseInt(JSON.stringify(row.id), 10);
-      if(idFromDB == ctx.from.id) {
+      if (idFromDB == ctx.from.id) {
         checkState = true
-      }      
+      }
     }
 
     // define keyborad
-    if(checkState) {
-        mainKeyboard(ctx);
+    if (checkState) {
+      mainKeyboard(ctx);
     } else {
       ctx.reply('Вітаю, ' + ctx.from.first_name + '! Будь ласка, визначте свій регіон',
-      Markup.keyboard([
-        ['🟡 Показати регіони']
-      ]));
+        Markup.keyboard([
+          ['🟡 Показати регіони']
+        ]));
     }
     // client.end();
   });
@@ -99,7 +111,6 @@ bot.start((ctx) => {
 bot.hears('📢 Допомога', (ctx) => {
   ctx.reply('Введіть /search для визначення вашого міста');
   ctx.reply('Введіть /quit для зупинки бота');
-  console.log("User: " + ctx.from.id + ".Comand: '/help'");
 });
 
 bot.hears('🔍 Шукати', (ctx) => {
@@ -132,17 +143,17 @@ bot.hears('⚠️ Для розробника', ctx => {
 });
 
 bot.on("callback_query", (msg) => {
-
   const userArea: string = msg.callbackQuery.data.replace(/'/, "''");
   const userId: number = msg.from.id;
+  const userAreaCirillic: string = areasOfUkraine[msg.callbackQuery.data as keyof typeof areasOfUkraine]
 
-  const sql = `INSERT INTO alarm_users (id, arrea) VALUES ('${userId}', '${userArea}')`;
-  console.log(sql);
+  const sql = `INSERT INTO alarm_users (id, arrea, arrea_cyrillic) VALUES ('${userId}', '${userArea}', '${userAreaCirillic}')`;
   // client.connect();
   client.query(sql, (err) => {
     if (err) console.log(err);
     // client.end();
   });
+  deleteAll(msg);
   mainKeyboard(msg);
 });
 
