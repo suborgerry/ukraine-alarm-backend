@@ -47,7 +47,7 @@ client.connect();
 // Function check user`s id with reion. If user have reion pring main keyboard if doesn`t offering to choise region.
 const mainKeyboard = async (ctx: Context) => {
   client.query(`SELECT * FROM alarm_users WHERE id='${ctx.from?.id}'`, (err, res) => {
-    // if (err) throw err;
+    if (err) console.error(err);
 
     const userRegion: string = res.rows[0].arrea_cyrillic;
     const userName: string = ctx.from?.first_name ? ctx.from.first_name : "шановний";
@@ -72,7 +72,7 @@ const deleteAll = async (msg: Context) => {
     try {
       await msg.telegram.deleteMessage(chatId, i);
     } catch (e) {
-      // console.error(e);
+      console.error(e);
       break;
     }
   }
@@ -83,7 +83,7 @@ bot.start((ctx) => {
   // check user id
   const sql = "SELECT * FROM alarm_users";
   client.query(sql, (err, res) => {
-    // if (err) throw err;
+    if (err) console.error(err);
 
     let checkState = false;
 
@@ -152,7 +152,7 @@ bot.on("callback_query", (msg: Context) => {
   const sql = `INSERT INTO alarm_users (id, arrea, arrea_cyrillic) VALUES ('${userId}', '${userArea}', '${userAreaCirillic}')`;
   // client.connect();
   client.query(sql, (err) => {
-    if (err) console.log(err);
+    if (err) console.error(err);
     // client.end();
   });
   mainKeyboard(msg);
