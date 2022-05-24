@@ -36,11 +36,11 @@ const areasOfUkraine = {
   "Crimea": "АР Крим",
 };
 
-const checkAlarm = (ctx) => {
+const checkAlarm = () => {
   axios.get('http://sirens.in.ua/api/v1/')
       .then(response => {
           // console.log(response);
-          showAlarm(response.data, ctx);
+          showAlarm(response.data);
       })
       .catch(error => {
           console.log(error);
@@ -50,21 +50,21 @@ const checkAlarm = (ctx) => {
       });
 };
 
-const showAlarm = (regions: object, ctx: Context) => {
+const showAlarm = (regions: object) => {
   for (const [region, state] of Object.entries(regions)) {
     if(state != null && state != 'no_data') {
       // console.log(region + " - " + state);
-      findAlarmUsers(region, ctx);
+      findAlarmUsers(region);
     }
   }
 }
 
-const findAlarmUsers = (region: string, ctx: Context) => {
+const findAlarmUsers = (region: string) => {
   const alarmRegion = region.replace(/'/, "''");
   client.query(`SELECT * FROM alarm_users WHERE region='${alarmRegion}'`, (err, res) => {
     if (err) console.error(err);
 
-    const alarmUsersId: Array<string> = res.rows;
+    const alarmUsersId = res.rows;
 
     if(alarmUsersId.length > 1) {
       alarmUsersId.forEach(user => {
@@ -78,8 +78,8 @@ const findAlarmUsers = (region: string, ctx: Context) => {
   });
 };
 
-bot.command('check', (ctx) => {
-  checkAlarm(ctx)
+bot.command('check', () => {
+  checkAlarm()
 })
 
 const client = new Client({
