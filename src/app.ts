@@ -1,6 +1,6 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 import { Update } from 'typegram';
-// import axios from 'axios';
+import axios from 'axios';
 import { Client } from 'pg';
 
 const token: string = process.env.BOT_TOKEN as string;
@@ -36,6 +36,52 @@ const areasOfUkraine = {
   "Crimea": "АР Крим",
 };
 
+const checkAlarm = (ctx) => {
+  axios.get('http://sirens.in.ua/api/v1/')
+      .then(response => {
+          // console.log(response);
+          showAlarm(response.data, ctx);
+      })
+      .catch(error => {
+          console.log(error);
+      })
+      .finally(()=>{
+          console.log('Finaly.')
+      });
+};
+
+const showAlarm = (regions: object, ctx: Context) => {
+  for (const [region, state] of Object.entries(regions)) {
+    if(state != null && state != 'no_data') {
+      // console.log(region + " - " + state);
+      findAlarmUsers(region, ctx);
+    }
+  }
+}
+
+const findAlarmUsers = (region: string, ctx: Context) => {
+  const alarmRegion = region.replace(/'/, "''");
+  client.query(`SELECT * FROM alarm_users WHERE region='${alarmRegion}'`, (err, res) => {
+    if (err) console.error(err);
+
+    const alarmUsersId: Array<string> = res.rows;
+
+    if(alarmUsersId.length > 1) {
+      alarmUsersId.forEach(user => {
+        bot.telegram.sendMessage(user.id, '📢 В вашому регіоні тевога! 📢')
+      });
+    }
+
+    // ctx.reply('test')
+    // console.log(region)
+    // console.log(alarmUsersId.length);
+  });
+};
+
+bot.command('check', (ctx) => {
+  checkAlarm(ctx)
+})
+
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -49,7 +95,7 @@ const mainKeyboard = async (ctx: Context) => {
   client.query(`SELECT * FROM alarm_users WHERE id='${ctx.from?.id}'`, (err, res) => {
     if (err) console.error(err);
 
-    const userRegion: string = res.rows[0].arrea_cyrillic;
+    const userRegion: string = res.rows[0].region_cyrillic;
     const userName: string = ctx.from?.first_name ? ctx.from.first_name : "шановний";
 
     const firsRow = `Вітаю ${userName}!`;
@@ -145,11 +191,11 @@ bot.hears('⚠️ Для розробника', ctx => {
 bot.on("callback_query", (msg: Context) => {
   const data: any = msg.callbackQuery;
 
-  const userArea: string = data.data.replace(/'/, "''");
+  const userRegion: string = data.data.replace(/'/, "''");
   const userId: number = msg?.from?.id != undefined ? msg.from.id : 0;
-  const userAreaCirillic: string = areasOfUkraine[data.data as keyof typeof areasOfUkraine]
+  const userRegionCirillic: string = areasOfUkraine[data.data as keyof typeof areasOfUkraine]
 
-  const sql = `INSERT INTO alarm_users (id, arrea, arrea_cyrillic) VALUES ('${userId}', '${userArea}', '${userAreaCirillic}')`;
+  const sql = `INSERT INTO alarm_users (id, region, region_cyrillic) VALUES ('${userId}', '${userRegion}', '${userRegionCirillic}')`;
   // client.connect();
   client.query(sql, (err) => {
     if (err) console.error(err);
