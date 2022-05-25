@@ -3,7 +3,6 @@ import { Update } from 'typegram';
 import axios from 'axios';
 import { Client } from 'pg';
 import { setInterval } from 'timers';
-import { stat } from 'fs';
 
 const token: string = process.env.BOT_TOKEN as string;
 const bot: Telegraf<Context<Update>> = new Telegraf(token);
@@ -48,7 +47,7 @@ setInterval(() => {
 }, 2000);
 
 const checkAlarm = () => {
-  axios.get('http://localhost/fake/fake.json') // http://sirens.in.ua/api/v1/
+  axios.get('http://sirens.in.ua/api/v1/') // http://localhost/fake/fake.json
       .then(response => {
           showAlarm(response.data);
       })
