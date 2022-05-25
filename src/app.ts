@@ -37,10 +37,10 @@ const areasOfUkraine = {
   "Crimea": "АР Крим",
 };
 
-bot.command('check', () => {
-  console.log('\n \n')
-  checkAlarm();
-});
+// bot.command('check', () => {
+//   console.log('\n \n')
+//   checkAlarm();
+// });
 
 setInterval(() => {
   checkAlarm();
@@ -92,15 +92,13 @@ const findAlarmUsers = (state: boolean, region: string) => {
 
     const alarmUsersId = res.rows;
 
-    // if(alarmUsersId.length > 1) {
-      alarmUsersId.forEach(user => {
-        if (state) {
-          bot.telegram.sendMessage(user.id, '📢 В вашому регіоні тевога! 📢')
-        } else {
-          bot.telegram.sendMessage(user.id, '🚫 В вашому регіоні відбій тривоги! 🚫')
-        }
-      });
-    // }
+    alarmUsersId.forEach(user => {
+      if (state) {
+        bot.telegram.sendMessage(user.id, '📢 В вашому регіоні тевога! 📢')
+      } else {
+        bot.telegram.sendMessage(user.id, '🚫 В вашому регіоні відбій тривоги! 🚫')
+      }
+    });
   });
 };
 
@@ -171,13 +169,11 @@ bot.start((ctx) => {
           ['🟡 Показати регіони']
         ]));
     }
-    // client.end();
   });
   console.log("Started user: " + ctx.from.id);
 });
 
 bot.hears('📢 Допомога', (ctx) => {
-  ctx.reply('Введіть /search для визначення вашого міста');
   ctx.reply('Введіть /quit для зупинки бота');
 });
 
@@ -218,10 +214,8 @@ bot.on("callback_query", (msg: Context) => {
   const userRegionCirillic: string = areasOfUkraine[data.data as keyof typeof areasOfUkraine]
 
   const sql = `INSERT INTO alarm_users (id, region, region_cyrillic) VALUES ('${userId}', '${userRegion}', '${userRegionCirillic}')`;
-  // client.connect();
   client.query(sql, (err) => {
     if (err) console.error(err);
-    // client.end();
   });
   mainKeyboard(msg);
   deleteAll(msg);
