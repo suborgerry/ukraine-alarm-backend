@@ -125,7 +125,7 @@ const mainKeyboard = async (ctx: Context) => {
     return (
       ctx.reply(firsRow + "\n" + secondRow,
         Markup.keyboard([
-          ['🔍 Шукати',], //'📌 Додати локацію'
+          // ['🔍 Шукати',], //'📌 Додати локацію'
           ['📢 Допомога']
         ]))
     )
