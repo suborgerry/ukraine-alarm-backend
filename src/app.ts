@@ -2,6 +2,8 @@ import { Context, Markup, Telegraf } from 'telegraf';
 import { Update } from 'typegram';
 import axios from 'axios';
 import { Client } from 'pg';
+import { setInterval } from 'timers';
+import { stat } from 'fs';
 
 const token: string = process.env.BOT_TOKEN as string;
 const bot: Telegraf<Context<Update>> = new Telegraf(token);
@@ -36,51 +38,72 @@ const areasOfUkraine = {
   "Crimea": "АР Крим",
 };
 
+bot.command('check', () => {
+  console.log('\n \n')
+  checkAlarm();
+});
+
+setInterval(() => {
+  checkAlarm();
+}, 2000);
+
 const checkAlarm = () => {
-  axios.get('http://sirens.in.ua/api/v1/')
+  axios.get('http://localhost/fake/fake.json') // http://sirens.in.ua/api/v1/
       .then(response => {
-          // console.log(response);
           showAlarm(response.data);
       })
       .catch(error => {
           console.log(error);
       })
       .finally(()=>{
-          console.log('Finaly.')
+          // console.log('Finaly.')
       });
 };
 
-const showAlarm = (regions: object) => {
-  for (const [region, state] of Object.entries(regions)) {
-    if(state != null && state != 'no_data') {
-      // console.log(region + " - " + state);
-      findAlarmUsers(region);
+let savedAlarmRegions: string;
+const showAlarm = (regions: string) => {
+  if (!savedAlarmRegions) savedAlarmRegions = regions;
+
+  for (const key of Object.keys(regions)) {
+
+    const newState = regions[key as unknown as number];
+    const savedState = savedAlarmRegions[key as unknown as number];
+
+    if(newState != savedState) {
+
+      if(newState === 'full') {
+        console.log('Alarm at ' + key);
+        findAlarmUsers(true, key);
+      } else {
+        console.log('Break at ' + key);
+        findAlarmUsers(false, key);
+      } 
     }
+
   }
+
+  savedAlarmRegions = regions;
+
 }
 
-const findAlarmUsers = (region: string) => {
+const findAlarmUsers = (state: boolean, region: string) => {
   const alarmRegion = region.replace(/'/, "''");
   client.query(`SELECT * FROM alarm_users WHERE region='${alarmRegion}'`, (err, res) => {
     if (err) console.error(err);
 
     const alarmUsersId = res.rows;
 
-    if(alarmUsersId.length > 1) {
+    // if(alarmUsersId.length > 1) {
       alarmUsersId.forEach(user => {
-        bot.telegram.sendMessage(user.id, '📢 В вашому регіоні тевога! 📢')
+        if (state) {
+          bot.telegram.sendMessage(user.id, '📢 В вашому регіоні тевога! 📢')
+        } else {
+          bot.telegram.sendMessage(user.id, '🚫 В вашому регіоні відбій тривоги! 🚫')
+        }
       });
-    }
-
-    // ctx.reply('test')
-    // console.log(region)
-    // console.log(alarmUsersId.length);
+    // }
   });
 };
-
-bot.command('check', () => {
-  checkAlarm()
-})
 
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
@@ -134,7 +157,7 @@ bot.start((ctx) => {
     let checkState = false;
 
     for (const row of res.rows) {
-      const idFromDB: number = parseInt(JSON.stringify(row.id), 10);
+      const idFromDB: number = row.id;
       if (idFromDB == ctx.from.id) {
         checkState = true
       }
