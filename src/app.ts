@@ -44,20 +44,114 @@ interface Metadata {
 
 // end custom interfses //
 
+// Connect to DB
+// URl for login at admin panel
+const client = new Client({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+client.connect();
 
-// test comands
+
+// Bot comands
+bot.start(ctx => {
+  // check user id
+  const sql = `SELECT * FROM ${tableName}`;
+  client.query(sql, (err, res) => {
+    if (err) console.error(err);
+
+    let checkState = false;
+
+    for (const row of res.rows) {
+      const idFromDB: number = row.id;
+      if (idFromDB == ctx.from.id) {
+        checkState = true
+      }
+    }
+
+    // define keyborad
+    if (checkState) {
+      mainKeyboard(ctx);
+    } else {
+      ctx.reply('Вітаю, ' + ctx.from.first_name + '! Будь ласка, визначте свій регіон',
+        Markup.keyboard([
+          ['🟡 Показати регіони']
+      ]));
+    }
+  });
+  console.log("Started user: " + ctx.from.id);
+});
+
 bot.command('check', () => {
   console.log('\n \n')
   checkAlarm();
 });
 
-// end test comands
+bot.command('quit', (ctx) => {
+  // Explicit usage
+  ctx.telegram.leaveChat(ctx.message.chat.id);
+
+  // Context shortcut
+  ctx.leaveChat();
+});
+
+// end bot comands
+
+
+// Hearscommand bot
+bot.hears('📢 Допомога', (ctx) => {
+  ctx.reply('Введіть /quit для зупинки бота');
+});
+
+bot.hears('🔍 Шукати', (ctx) => {
+  ctx.reply(
+    'Виберіть вашу область'
+  )
+});
+
+bot.hears('🟡 Показати регіони', ctx => {
+  generateKeyboard(ctx, 'insert')
+});
+
+bot.hears('⚙️ Налаштування', ctx => {
+  ctx.deleteMessage();
+  ctx.reply('⚙️ Меню налаштувань:',
+  Markup.keyboard([
+    ['🔄 Змінити регіон']
+  ]));
+  // ctx.deleteMessage();
+});
+
+bot.hears('🔄 Змінити регіон', ctx => {
+  generateKeyboard(ctx, 'update');
+});
+// end hears
 
 // Working cycle
 setInterval(() => {
   checkAlarm();
 }, 2000);
 
+
+// Working functions
+// Functions for check and alarm state
+const generateKeyboard = (ctx: Context, type: string) => {
+  const buttonsArray = [];
+  for (const [key, value] of Object.entries(areasOfUkraine)) {
+    buttonsArray.push(
+      [{ text: value, callback_data: '{"region": "' + key + '", "type": "' + type + '"}' }]
+    )
+  }
+
+  ctx.reply("Оберіть ваш регіон", {
+    reply_markup: {
+      inline_keyboard: buttonsArray
+    }
+  });
+  ctx.reply("Оберіть ваш регіон");
+};
 
 const checkAlarm = () => {
   axios.get('http://localhost/fake/fake.json') // http://sirens.in.ua/api/v1/
@@ -90,7 +184,7 @@ const showAlarm = (regions: Metadata) => {
 
   }
   savedAlarmRegions = regions;
-}
+};
 
 const findAlarmUsers = (state: boolean, region: string) => {
   const alarmRegion = region.replace(/'/, "''");
@@ -101,44 +195,76 @@ const findAlarmUsers = (state: boolean, region: string) => {
     const alarmUsersId = res.rows;
 
     const alarmRegionUkr = areasOfUkraine[region];
-    console.log(`📢 В регіоні ${alarmRegionUkr} тевога! 📢`);
     alarmUsersId.forEach(user => {
       if (state) {
         bot.telegram.sendMessage(user.id, `📢 В регіоні ${alarmRegionUkr} тевога! 📢`)
       } else {
-        bot.telegram.sendMessage(user.id, `🚫 В регіоні ${alarmRegionUkr} тривоги! 🚫`)
+        bot.telegram.sendMessage(user.id, `🚫 В регіоні ${alarmRegionUkr} відбій тривоги! 🚫`)
       }
     });
   });
 };
 
-const client = new Client({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-client.connect();
+const updateData = (ctx: Context) => {
+
+  const data: any = ctx.callbackQuery;
+  const dataRegion = JSON.parse(data.data).region;
+  const newRegion: string = dataRegion.replace(/'/, "''");
+  const userId: number = ctx?.from?.id != undefined ? ctx.from.id : 0;
+  const newRegionCirillic: string = areasOfUkraine[dataRegion as keyof typeof areasOfUkraine];
+
+  const sql = `UPDATE ${tableName} SET region='${newRegion}', region_cyrillic='${newRegionCirillic}' WHERE id='${userId}'`;
+  console.log(sql);
+  client.query(sql, (err) => {
+    if (err) console.error(err);
+
+    mainKeyboard(ctx);
+    deleteAll(ctx);
+
+    return(
+      ctx.reply(`Ваш регіон змінено на ${newRegionCirillic}`)
+    )
+  });
+};
+
+const insertData = (ctx: Context) => {
+
+  const data: any = ctx.callbackQuery;
+  const dataRegion = JSON.parse(data.data).region;
+  const userRegion: string = dataRegion.replace(/'/, "''");
+  const userId: number = ctx?.from?.id != undefined ? ctx.from.id : 0;
+  const userRegionCirillic: string = areasOfUkraine[dataRegion as keyof typeof areasOfUkraine];
+
+  const sql = `INSERT INTO ${tableName} (id, region, region_cyrillic) VALUES ('${userId}', '${userRegion}', '${userRegionCirillic}')`;
+  
+  // const userName: string = ctx.from?.first_name ? ctx.from.first_name : "шановний";
+  
+  client.query(sql, (err) => {
+    if (err) console.error(err);
+    
+    mainKeyboard(ctx);
+    deleteAll(ctx);
+    
+    return(
+      ctx.reply(`Ваш регіон: ${userRegionCirillic}`)
+    )
+  });
+};
+
+// end functions
+
 
 // Function check user`s id with reion. If user have reion pring main keyboard if doesn`t offering to choise region.
 const mainKeyboard = async (ctx: Context) => {
-  const sql = `SELECT * FROM ${tableName} WHERE id='${ctx.from?.id}'`;
-  client.query(sql, (err, res) => {
-    if (err) console.error(err);
-
-    const userRegion: string = res.rows[0].region_cyrillic;
-    const userName: string = ctx.from?.first_name ? ctx.from.first_name : "шановний";
-
-    const firsRow = `Вітаю ${userName}!`;
-    const secondRow = `Ваш регіон: ${userRegion}`
+    const secondRow = `Головне меню ⬇️`
     return (
-      ctx.reply(firsRow + "\n" + secondRow,
+      ctx.reply(secondRow,
         Markup.keyboard([
           // ['🔍 Шукати',], //'📌 Додати локацію'
-          ['📢 Допомога']
+          // ['📢 Допомога']
+          ['⚙️ Налаштування']
         ]))
     )
-  });
 };
 
 const deleteAll = async (msg: Context) => {
@@ -156,81 +282,18 @@ const deleteAll = async (msg: Context) => {
   return 0;
 };
 
-bot.start((ctx) => {
-  // check user id
-  const sql = `SELECT * FROM ${tableName}`;
-  client.query(sql, (err, res) => {
-    if (err) console.error(err);
-
-    let checkState = false;
-
-    for (const row of res.rows) {
-      const idFromDB: number = row.id;
-      if (idFromDB == ctx.from.id) {
-        checkState = true
-      }
-    }
-
-    // define keyborad
-    if (checkState) {
-      mainKeyboard(ctx);
-    } else {
-      ctx.reply('Вітаю, ' + ctx.from.first_name + '! Будь ласка, визначте свій регіон',
-        Markup.keyboard([
-          ['🟡 Показати регіони']
-        ]));
-    }
-  });
-  console.log("Started user: " + ctx.from.id);
-});
-
-bot.hears('📢 Допомога', (ctx) => {
-  ctx.reply('Введіть /quit для зупинки бота');
-});
-
-bot.hears('🔍 Шукати', (ctx) => {
-  ctx.reply(
-    'Виберіть вашу область'
-  )
-});
-
-bot.hears(/📌 Моя локація|🟡 Показати регіони/, ctx => {
-  const buttonsArray = [];
-  for (const [key, value] of Object.entries(areasOfUkraine)) {
-    buttonsArray.push(
-      [{ text: value, callback_data: key }]
-    )
+// Use calback process
+bot.on("callback_query", (ctx: Context) => {
+  const data: any = ctx.callbackQuery;
+  const queryType: string = JSON.parse(data.data).type;
+  
+  if(queryType == 'insert') {
+    insertData(ctx)
+  } else if(queryType == 'update'){
+    updateData(ctx)
   }
+  
 
-  ctx.reply("Оберіть ваш регіон", {
-    reply_markup: {
-      inline_keyboard: buttonsArray
-    }
-  });
-  ctx.reply("Оберіть ваш регіон");
-});
-
-bot.on("callback_query", (msg: Context) => {
-  const data: any = msg.callbackQuery;
-
-  const userRegion: string = data.data.replace(/'/, "''");
-  const userId: number = msg?.from?.id != undefined ? msg.from.id : 0;
-  const userRegionCirillic: string = areasOfUkraine[data.data as keyof typeof areasOfUkraine]
-
-  const sql = `INSERT INTO ${tableName} (id, region, region_cyrillic) VALUES ('${userId}', '${userRegion}', '${userRegionCirillic}')`;
-  client.query(sql, (err) => {
-    if (err) console.error(err);
-  });
-  mainKeyboard(msg);
-  deleteAll(msg);
-});
-
-bot.command('quit', (ctx) => {
-  // Explicit usage
-  ctx.telegram.leaveChat(ctx.message.chat.id);
-
-  // Context shortcut
-  ctx.leaveChat();
 });
 
 bot.launch();
