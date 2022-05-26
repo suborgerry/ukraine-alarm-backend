@@ -5,8 +5,9 @@ import { Client } from 'pg';
 import { setInterval } from 'timers';
 
 const token: string = process.env.BOT_TOKEN as string;
+const tableName: string = process.env.DB_NAME as string; // test_alarm_users or alarm_users
+const adresAPI: string = process.env.API_ADRES as string; // http://sirens.in.ua/api/v1/ or http://localhost/fake/fake.json
 const bot: Telegraf<Context<Update>> = new Telegraf(token);
-const tableName = 'test_alarm_users'; //alarm_users
 const areasOfUkraine: Metadata = {
   "Mykolayiv": "Миколаївська обл.",
   "Chernihiv": "Чернігівська обл.",
@@ -105,12 +106,6 @@ bot.hears('📢 Допомога', (ctx) => {
   ctx.reply('Введіть /quit для зупинки бота');
 });
 
-bot.hears('🔍 Шукати', (ctx) => {
-  ctx.reply(
-    'Виберіть вашу область'
-  )
-});
-
 bot.hears('🟡 Показати регіони', ctx => {
   generateKeyboard(ctx, 'insert')
 });
@@ -154,7 +149,7 @@ const generateKeyboard = (ctx: Context, type: string) => {
 };
 
 const checkAlarm = () => {
-  axios.get('http://localhost/fake/fake.json') // http://sirens.in.ua/api/v1/
+  axios.get(adresAPI)
       .then(response => {
           showAlarm(response.data);
       })
@@ -260,7 +255,7 @@ const mainKeyboard = async (ctx: Context) => {
     return (
       ctx.reply(secondRow,
         Markup.keyboard([
-          // ['🔍 Шукати',], //'📌 Додати локацію'
+          //['📌 Додати локацію']
           // ['📢 Допомога']
           ['⚙️ Налаштування']
         ]))
