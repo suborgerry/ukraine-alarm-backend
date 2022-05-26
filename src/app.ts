@@ -6,8 +6,8 @@ import { setInterval } from 'timers';
 
 const token: string = process.env.BOT_TOKEN as string;
 const bot: Telegraf<Context<Update>> = new Telegraf(token);
-
-const areasOfUkraine = {
+const tableName = 'test_alarm_users'; //alarm_users
+const areasOfUkraine: Metadata = {
   "Mykolayiv": "Миколаївська обл.",
   "Chernihiv": "Чернігівська обл.",
   "Rivne": "Рівенська обл.",
@@ -37,36 +37,45 @@ const areasOfUkraine = {
   "Crimea": "АР Крим",
 };
 
-// bot.command('check', () => {
-//   console.log('\n \n')
-//   checkAlarm();
-// });
+// Custom interfases //
+interface Metadata {
+    [key: string]: string
+}
 
+// end custom interfses //
+
+
+// test comands
+bot.command('check', () => {
+  console.log('\n \n')
+  checkAlarm();
+});
+
+// end test comands
+
+// Working cycle
 setInterval(() => {
   checkAlarm();
 }, 2000);
 
+
 const checkAlarm = () => {
-  axios.get('http://sirens.in.ua/api/v1/') // http://localhost/fake/fake.json
+  axios.get('http://localhost/fake/fake.json') // http://sirens.in.ua/api/v1/
       .then(response => {
           showAlarm(response.data);
       })
       .catch(error => {
           console.log(error);
       })
-      .finally(()=>{
-          // console.log('Finaly.')
-      });
 };
 
-let savedAlarmRegions: string;
-const showAlarm = (regions: string) => {
+let savedAlarmRegions: Metadata;
+const showAlarm = (regions: Metadata) => {
   if (!savedAlarmRegions) savedAlarmRegions = regions;
 
   for (const key of Object.keys(regions)) {
-
-    const newState = regions[key as unknown as number];
-    const savedState = savedAlarmRegions[key as unknown as number];
+    const newState = regions[key];
+    const savedState = savedAlarmRegions[key];
 
     if(newState != savedState) {
 
@@ -80,23 +89,24 @@ const showAlarm = (regions: string) => {
     }
 
   }
-
   savedAlarmRegions = regions;
-
 }
 
 const findAlarmUsers = (state: boolean, region: string) => {
   const alarmRegion = region.replace(/'/, "''");
-  client.query(`SELECT * FROM alarm_users WHERE region='${alarmRegion}'`, (err, res) => {
+  const sql = `SELECT * FROM ${tableName} WHERE region='${alarmRegion}'`;
+  client.query(sql, (err, res) => {
     if (err) console.error(err);
 
     const alarmUsersId = res.rows;
 
+    const alarmRegionUkr = areasOfUkraine[region];
+    console.log(`📢 В регіоні ${alarmRegionUkr} тевога! 📢`);
     alarmUsersId.forEach(user => {
       if (state) {
-        bot.telegram.sendMessage(user.id, '📢 В вашому регіоні тевога! 📢')
+        bot.telegram.sendMessage(user.id, `📢 В регіоні ${alarmRegionUkr} тевога! 📢`)
       } else {
-        bot.telegram.sendMessage(user.id, '🚫 В вашому регіоні відбій тривоги! 🚫')
+        bot.telegram.sendMessage(user.id, `🚫 В регіоні ${alarmRegionUkr} тривоги! 🚫`)
       }
     });
   });
@@ -112,7 +122,8 @@ client.connect();
 
 // Function check user`s id with reion. If user have reion pring main keyboard if doesn`t offering to choise region.
 const mainKeyboard = async (ctx: Context) => {
-  client.query(`SELECT * FROM alarm_users WHERE id='${ctx.from?.id}'`, (err, res) => {
+  const sql = `SELECT * FROM ${tableName} WHERE id='${ctx.from?.id}'`;
+  client.query(sql, (err, res) => {
     if (err) console.error(err);
 
     const userRegion: string = res.rows[0].region_cyrillic;
@@ -147,7 +158,7 @@ const deleteAll = async (msg: Context) => {
 
 bot.start((ctx) => {
   // check user id
-  const sql = "SELECT * FROM alarm_users";
+  const sql = `SELECT * FROM ${tableName}`;
   client.query(sql, (err, res) => {
     if (err) console.error(err);
 
@@ -199,13 +210,6 @@ bot.hears(/📌 Моя локація|🟡 Показати регіони/, ctx
   ctx.reply("Оберіть ваш регіон");
 });
 
-bot.hears('⚠️ Для розробника', ctx => {
-  ctx.reply(
-    "І'мя: " + ctx.from.first_name + "\n" + "Фамілія: " + ctx.from.last_name + "\n" + "Ваш id: " + ctx.from.id + "\n"
-  );
-  ctx.deleteMessage()
-});
-
 bot.on("callback_query", (msg: Context) => {
   const data: any = msg.callbackQuery;
 
@@ -213,7 +217,7 @@ bot.on("callback_query", (msg: Context) => {
   const userId: number = msg?.from?.id != undefined ? msg.from.id : 0;
   const userRegionCirillic: string = areasOfUkraine[data.data as keyof typeof areasOfUkraine]
 
-  const sql = `INSERT INTO alarm_users (id, region, region_cyrillic) VALUES ('${userId}', '${userRegion}', '${userRegionCirillic}')`;
+  const sql = `INSERT INTO ${tableName} (id, region, region_cyrillic) VALUES ('${userId}', '${userRegion}', '${userRegionCirillic}')`;
   client.query(sql, (err) => {
     if (err) console.error(err);
   });
